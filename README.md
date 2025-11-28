@@ -4,8 +4,8 @@ This project is a small demonstration of how basic machine-learning models can b
 
 I use a simple, physics-inspired aerodynamic model to generate a synthetic dataset of lift (`C_L`) and drag (`C_D`) for different flight conditions and wing geometries, then train and compare:
 
-- A **linear regression** baseline.
-- A small **feedforward neural network** (multi-layer perceptron) implemented as a multi-output regressor.
+- A linear regression baseline.
+- A small feedforward neural network (multi-layer perceptron) implemented as a multi-output regressor.
 
 The goal is not to replace CFD, but to show in a clear and reproducible way how machine learning can be integrated into an aerospace workflow for modelling and design.
 
@@ -17,13 +17,13 @@ When a wing flies close to the ground, its aerodynamic characteristics change: l
 
 In this project I model:
 
-- **Inputs (features)**  
+- Inputs (features)  
   - `h_c` – height-to-chord ratio \( h/c \)  
   - `alpha_deg` – angle of attack in degrees  
   - `Re_million` – Reynolds number (scaled by \(10^6\))  
   - `AR` – wing aspect ratio (6, 9, or 12)
 
-- **Outputs (targets)**  
+- Outputs (targets)  
   - `C_L` – lift coefficient in ground effect  
   - `C_D` – drag coefficient in ground effect  
 
@@ -69,7 +69,7 @@ The outputs (targets) are:
 - `C_L` – lift coefficient in ground effect  
 - `C_D` – drag coefficient in ground effect  
 
-The final CSV file (`ground_effect_dataset.csv`) contains **1200 samples** (400 per aspect ratio). A quick summary:
+The final CSV file (`ground_effect_dataset.csv`) contains 1200 samples (400 per aspect ratio). A quick summary:
 
 - \(C_L \in [-0.51, 1.69]\), mean ≈ 0.40  
 - \(C_D \in [0.018, 0.081]\), mean ≈ 0.030  
@@ -96,7 +96,7 @@ I originally tried a single multi-output neural network trained jointly on `C_L`
 To fix this, the final neural model uses:
 
 - `StandardScaler` on inputs.
-- `MultiOutputRegressor(MLPRegressor)`, so **each target has its own MLP**, which avoids the scale-imbalance issue.
+- `MultiOutputRegressor(MLPRegressor)`, so each target has its own MLP, which avoids the scale-imbalance issue.
 - MLP hyperparameters:
   - Hidden layers: `(64, 32)`
   - Activation: ReLU  
@@ -111,29 +111,29 @@ This setup gave a much more stable neural surrogate, especially for `C_D`, with 
 
 ### Quantitative results (`metrics.csv`)
 
-Model performance is stored in `results/metrics.csv` as MAE and \(R^2\) for each target and split. On the **test set**:
+Model performance is stored in `results/metrics.csv` as MAE and \(R^2\) for each target and split. On the test set:
 
-- **Lift coefficient \(C_L\)**  
+- Lift coefficient \(C_L\)  
   - Linear regression:  
-    - MAE ≈ **0.0457**  
+    - MAE ≈ 0.0457  
     - \(R^2 \approx 0.983\)  
   - Neural network:  
-    - MAE ≈ **0.0176**  
+    - MAE ≈ 0.0176  
     - \(R^2 \approx 0.998\)  
 
   Both models do extremely well on lift, but the neural network roughly halves the MAE and pushes \(R^2\) very close to 1. This is what I’d expect, since the synthetic lift law has some mild nonlinearities that the MLP can capture.
 
-- **Drag coefficient \(C_D\)**  
+- Drag coefficient \(C_D\)  
   - Linear regression:  
-    - MAE ≈ **0.0056**  
+    - MAE ≈ 0.0056  
     - \(R^2 \approx 0.77\)  
   - Neural network:  
-    - MAE ≈ **0.0077**  
+    - MAE ≈ 0.0077  
     - \(R^2 \approx 0.47\)  
 
-  Typical `C_D` values are around 0.03, so these errors are on the order of 15–25% relative error. The key point is that the **linear model actually generalises better** on drag than the neural network. The NN is slightly better on the training set but worse on the test set, which is a sign of overfitting.
+  Typical `C_D` values are around 0.03, so these errors are on the order of 15–25% relative error. The key point is that the linear model actually generalises better on drag than the neural network. The NN is slightly better on the training set but worse on the test set, which is a sign of overfitting.
 
-**Commentary on the CSVs**
+Commentary on the CSVs
 
 > The dataset CSV shows that the synthetic aerodynamic model produces sensible coefficients across the intended parameter ranges, with a realistic spread of lift and strictly positive drag. The metrics CSV confirms that linear regression already achieves very high accuracy for \(C_L\) and reasonable accuracy for \(C_D\), while the improved neural network brings a clear gain for lift but not for drag. This is a nice example of how small ML surrogates can work well for some quantities (here, lift) but may not always outperform simpler models for others (drag), especially when the underlying relationship is fairly simple.
 
@@ -147,13 +147,13 @@ Two scatter plots give a visual check of the model behaviour on the test set.
 
 ![True vs predicted lift coefficient](figs/true_vs_predicted_CL.png)
 
-> **Figure 1** compares true and predicted lift coefficients \(C_L\) for the test samples. Both the linear regression and the neural network produce points that lie very close to the 1:1 reference line, which means the main lift behaviour is captured well across the range of angle of attack, height ratio and aspect ratio. The scatter around the diagonal is small and doesn’t show an obvious bias. The neural-network predictions form an even tighter band around the line than the linear model, especially at the highest and lowest \(C_L\) values, which suggests it is picking up the small nonlinear effects in the synthetic model.
+> Figure 1 compares true and predicted lift coefficients \(C_L\) for the test samples. Both the linear regression and the neural network produce points that lie very close to the 1:1 reference line, which means the main lift behaviour is captured well across the range of angle of attack, height ratio and aspect ratio. The scatter around the diagonal is small and doesn’t show an obvious bias. The neural-network predictions form an even tighter band around the line than the linear model, especially at the highest and lowest \(C_L\) values, which suggests it is picking up the small nonlinear effects in the synthetic model.
 
 #### Drag coefficient \(C_D\) (improved neural network)
 
 ![True vs predicted drag coefficient](figs/true_vs_predicted_CD.png)
 
-> **Figure 2** shows the equivalent plot for the drag coefficient \(C_D\). The linear regression model (blue markers) follows the 1:1 line with a moderate, roughly symmetric spread, which is reasonable given the simple drag formulation (profile + induced drag). The neural network (orange markers), using the improved multi-output configuration, now follows the same upward trend and no longer produces the very scattered or negative values that appeared in the original setup. Its scatter is still somewhat larger than that of the linear baseline—consistent with the lower test-set \(R^2\)—but the predictions remain centred around the diagonal and reproduce the curvature of the drag relationship at low \(C_D\). This shows that the revised training strategy (separate MLP per target, early stopping and regularisation) made the drag surrogate physically plausible, even if the linear model is ultimately more robust here.
+> Figure 2 shows the equivalent plot for the drag coefficient \(C_D\). The linear regression model (blue markers) follows the 1:1 line with a moderate, roughly symmetric spread, which is reasonable given the simple drag formulation (profile + induced drag). The neural network (orange markers), using the improved multi-output configuration, now follows the same upward trend and no longer produces the very scattered or negative values that appeared in the original setup. Its scatter is still somewhat larger than that of the linear baseline—consistent with the lower test-set \(R^2\)—but the predictions remain centred around the diagonal and reproduce the curvature of the drag relationship at low \(C_D\). This shows that the revised training strategy (separate MLP per target, early stopping and regularisation) made the drag surrogate physically plausible, even if the linear model is ultimately more robust here.
 
 #### Original neural-network drag behaviour (optional, for discussion)
 
